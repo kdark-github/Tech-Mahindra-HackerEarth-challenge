@@ -1,12 +1,30 @@
+const ProductType = require("../models/productType");
 const Product = require("../models/product");
 const { validationResult } = require("express-validator");
 
 exports.getProducts = (req, res, next) => {
-  Product.find()
+  const productTypes = {};
+  let typesArr = [];
+  ProductType.find()
+    .then((types) => {
+      typesArr = types;
+      types.forEach((type) => {
+        productTypes[type._id] = type;
+      });
+
+      return Product.find();
+    })
     .then((products) => {
       res.status(200).json({
         message: "Products fetched successfully!",
-        products,
+        types: typesArr,
+        products: products.map(({ name, _id, price, type, imageLink }) => ({
+          name,
+          _id,
+          imageLink,
+          price,
+          type: productTypes[type],
+        })),
         total: products.length,
       });
     })
@@ -37,22 +55,14 @@ exports.createProduct = (req, res, next) => {
 
   const { name, type, imageLink, price } = req.body;
 
-  Product.findOne({ name })
-    .then((result) => {
-      if (result) {
-        const error = new Error("A product with same name exists.");
-        error.statusCode = 404;
-        throw error;
-      }
-
-      const product = new Product({
-        name,
-        type,
-        imageLink,
-        price,
-      });
-      return product.save();
-    })
+  const product = new Product({
+    name,
+    type,
+    imageLink,
+    price,
+  });
+  product
+    .save()
     .then((result) => {
       res.status(201).json({
         product: result,
